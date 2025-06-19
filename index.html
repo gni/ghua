@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>github user audit</title>
+    <meta name="description" content="A secure tool to quickly audit public GitHub user information, including user ID and join date. Enter a username or ID to begin.">
+    <meta name="keywords" content="github, user audit, security, api, developer tool, opensecurity, ghua, user id">
+    <meta name="author" content="Lucian BLETAN">
+    <link rel="canonical" href="https://opensecurity.github.io/ghua">
+
+    <meta property="og:title" content="github user audit">
+    <meta property="og:description" content="A secure tool to quickly audit public GitHub user information, including user ID and join date.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://opensecurity.github.io/ghua">
+    <meta property="og:site_name" content="Open Security">
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="github user audit">
+    <meta name="twitter:description" content="A secure tool to quickly audit public GitHub user information, including user ID and join date.">
+
+    <style>
+        :root {
+            --background-color: #f8f9fa;
+            --font-color: #212529;
+            --primary-color: #007bff;
+            --primary-color-hover: #0056b3;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --container-background: #ffffff;
+            --border-color: #dee2e6;
+            --border-radius: 0.5rem;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        html {
+            font-size: 100%;
+            box-sizing: border-box;
+        }
+        *,
+        *::before,
+        *::after {
+            box-sizing: inherit;
+        }
+        body {
+            margin: 0;
+            font-family: var(--font-family);
+            line-height: 1.5;
+            background-color: var(--background-color);
+            color: var(--font-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        main {
+            width: 100%;
+            max-width: 80%;
+            background-color: var(--container-background);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.75rem;
+            font-weight: 500;
+        }
+        #audit-form {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: inline-block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        input[type="text"] {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: var(--font-color);
+            background-color: var(--container-background);
+            background-clip: padding-box;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .input-hint {
+            font-size: 0.875em;
+            color: #6c757d;
+        }
+        .submit-button {
+            padding: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #ffffff;
+            background-color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+        .submit-button:hover:not(:disabled) {
+            background-color: var(--primary-color-hover);
+        }
+        .submit-button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+        #results-container {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            min-height: 50px;
+            border: 1px solid transparent;
+        }
+        #results-container.success {
+            border-color: var(--border-color);
+        }
+        #results-container.error {
+            color: var(--danger-color);
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        #results-container p {
+            margin: 0 0 0.5rem;
+        }
+        #results-container p:last-child {
+            margin-bottom: 0;
+        }
+        .result-label {
+            font-weight: 600;
+        }
+        #results-container pre {
+            background-color: #e9ecef;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.875em;
+            border: 1px solid var(--border-color);
+        }
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            width: 100%;
+            max-width: 80%;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        footer a {
+            color: var(--font-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        footer a:hover {
+            color: var(--primary-color);
+            text-decoration: underline;
+        }
+    </style>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebPage",
+          "name": "github user audit",
+          "description": "A secure tool to quickly audit public GitHub user information, including user ID and join date.",
+          "url": "https://opensecurity.github.io/ghua",
+          "datePublished": "2025-06-19",
+          "author": {
+            "@type": "Person",
+            "name": "Lucian BLETAN"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "name": "Open Security",
+          "url": "https://opensecurity.github.io"
+        }
+      ]
+    }
+    </script>
+</head>
+
+<body>
+    <main>
+        <header>
+            <h1>github user audit</h1>
+        </header>
+        <form id="audit-form" novalidate>
+            <div class="form-group">
+                <label for="username-input">github username or id</label>
+                <input type="text" id="username-input" name="username" required minlength="1" maxlength="39"
+                    pattern="^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$|^[0-9]+$" autocapitalize="none"
+                    autocomplete="username" spellcheck="false" aria-describedby="username-hint">
+                <small id="username-hint" class="input-hint">Enter a GitHub username (e.g., "torvalds") or user ID
+                    (e.g., "1024025").</small>
+            </div>
+            <button type="submit" id="submit-button" class="submit-button">audit user</button>
+        </form>
+        <section id="results-container" aria-live="polite"></section>
+    </main>
+    <footer>
+        <p>&copy; 2025 Open Security. <a href="https://opensecurity.github.io/ghua" target="_blank">View project on GitHub</a>.</p>
+    </footer>
+    <script>
+        'use strict';
+
+        (function () {
+            const form = document.getElementById('audit-form');
+            const usernameInput = document.getElementById('username-input');
+            const submitButton = document.getElementById('submit-button');
+            const resultsContainer = document.getElementById('results-container');
+            const GITHUB_API_BASE_URL = 'https://api.github.com/';
+
+            const renderError = (message) => {
+                resultsContainer.className = 'error';
+                resultsContainer.textContent = message;
+            };
+
+            const clearResult = () => {
+                resultsContainer.className = '';
+                resultsContainer.innerHTML = '';
+            };
+
+            const createResultLine = (label, value) => {
+                if (value === null || value === undefined) return null;
+                const p = document.createElement('p');
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'result-label';
+                labelSpan.textContent = `${label}: `;
+                const valueSpan = document.createElement('span');
+                valueSpan.textContent = value;
+                p.append(labelSpan, valueSpan);
+                return p;
+            };
+
+            const renderSuccess = (userData) => {
+                resultsContainer.className = 'success';
+                const { id, login, name, followers, following, created_at, type, site_admin, company, blog, location, email, hireable, bio, twitter_username, public_repos, public_gists, updated_at } = userData;
+
+                const joinDate = new Date(created_at).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                const lines = [
+                    createResultLine('User ID', id),
+                    createResultLine('Login', login),
+                    createResultLine('Name', name),
+                    createResultLine('Joined GitHub', joinDate)
+                ].filter(line => line !== null);
+
+                lines.forEach(line => resultsContainer.append(line));
+
+                const filteredData = { id, login, type, site_admin, name, company, blog, location, email, hireable, bio, twitter_username, public_repos, public_gists, followers, following, created_at, updated_at };
+                const preElement = document.createElement('pre');
+                const codeElement = document.createElement('code');
+                codeElement.textContent = JSON.stringify(filteredData, null, 2);
+                preElement.append(codeElement);
+                resultsContainer.append(preElement);
+            };
+
+            const fetchUserData = async (query) => {
+                const isNumericId = /^[0-9]+$/.test(query);
+                const endpoint = isNumericId ? `user/${query}` : `users/${query}`;
+                const requestUrl = `${GITHUB_API_BASE_URL}${endpoint}`;
+
+                const response = await fetch(requestUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('User not found.');
+                    }
+                    if (response.status === 403) {
+                        throw new Error('API rate limit exceeded. Please wait before trying again.');
+                    }
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (typeof data.id !== 'number' || typeof data.created_at !== 'string') {
+                    throw new Error('Received malformed data from the API.');
+                }
+
+                return data;
+            };
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                clearResult();
+
+                if (!form.checkValidity()) {
+                    renderError('Please enter a valid GitHub username or ID.');
+                    return;
+                }
+
+                const query = usernameInput.value.trim();
+                submitButton.setAttribute('disabled', 'true');
+
+                try {
+                    const userData = await fetchUserData(query);
+                    renderSuccess(userData);
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+                    renderError(errorMessage);
+                } finally {
+                    submitButton.removeAttribute('disabled');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
