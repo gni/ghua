@@ -128,29 +128,43 @@
         }
         #results-container {
             margin-top: 1.5rem;
-            padding: 1rem;
-            border-radius: var(--border-radius);
+            padding: 0;
             min-height: 50px;
-            border: 1px solid transparent;
-        }
-        #results-container.success {
-            border-color: var(--border-color);
         }
         #results-container.error {
+            padding: 1rem;
+            border-radius: var(--border-radius);
             color: var(--danger-color);
             background-color: #f8d7da;
             border-color: #f5c6cb;
         }
-        #results-container p {
+        .result-block {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background-color: var(--container-background);
+        }
+        .result-block:last-child {
+            margin-bottom: 0;
+        }
+        .result-block h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            font-weight: 500;
+        }
+        .result-block p {
             margin: 0 0 0.5rem;
         }
-        #results-container p:last-child {
+        .result-block p:last-child {
             margin-bottom: 0;
         }
         .result-label {
             font-weight: 600;
         }
-        #results-container pre {
+        .result-block pre {
             background-color: #e9ecef;
             padding: 1rem;
             border-radius: var(--border-radius);
@@ -259,61 +273,55 @@
                 return p;
             };
 
-            const renderSuccess = (userData) => {
-                resultsContainer.className = 'success';
-                const { id, login, name, followers, following, created_at, type, site_admin, company, blog, location, email, hireable, bio, twitter_username, public_repos, public_gists, updated_at } = userData;
+            const renderSingleResult = (result) => {
+                const { searchType, data } = result;
+                const { id, login, name, followers, following, created_at, type, site_admin, company, blog, location, email, hireable, bio, twitter_username, public_repos, public_gists, updated_at } = data;
 
-                const joinDate = new Date(created_at).toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
+                const resultBlock = document.createElement('div');
+                resultBlock.className = 'result-block';
+                
+                const header = document.createElement('h3');
+                header.textContent = `Result for ${searchType}: "${login}"`;
+                resultBlock.append(header);
+
+                const joinDate = new Date(created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
                 const lines = [
+                    createResultLine('Type', type),
                     createResultLine('User ID', id),
-                    createResultLine('Login', login),
                     createResultLine('Name', name),
                     createResultLine('Joined GitHub', joinDate)
                 ].filter(line => line !== null);
-
-                lines.forEach(line => resultsContainer.append(line));
+                lines.forEach(line => resultBlock.append(line));
 
                 const filteredData = { id, login, type, site_admin, name, company, blog, location, email, hireable, bio, twitter_username, public_repos, public_gists, followers, following, created_at, updated_at };
                 const preElement = document.createElement('pre');
                 const codeElement = document.createElement('code');
                 codeElement.textContent = JSON.stringify(filteredData, null, 2);
                 preElement.append(codeElement);
-                resultsContainer.append(preElement);
+                resultBlock.append(preElement);
+
+                return resultBlock;
             };
 
-            const fetchUserData = async (query) => {
-                const isNumericId = /^[0-9]+$/.test(query);
-                const endpoint = isNumericId ? `user/${query}` : `users/${query}`;
-                const requestUrl = `${GITHUB_API_BASE_URL}${endpoint}`;
-
-                const response = await fetch(requestUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        throw new Error('User not found.');
-                    }
-                    if (response.status === 403) {
-                        throw new Error('API rate limit exceeded. Please wait before trying again.');
-                    }
-                    throw new Error(`API request failed with status: ${response.status}`);
-                }
-                const data = await response.json();
-
-                if (typeof data.id !== 'number' || typeof data.created_at !== 'string') {
-                    throw new Error('Received malformed data from the API.');
+            const fetchAllData = async (query) => {
+                const fetchWithContext = async (url, searchType) => {
+                    const response = await fetch(url, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                    if (!response.ok) throw new Error(`API call for ${searchType} failed`);
+                    const data = await response.json();
+                    if (typeof data.id !== 'number' || typeof data.created_at !== 'string') throw new Error('Malformed API response');
+                    return { searchType, data };
+                };
+                
+                const promises = [fetchWithContext(`${GITHUB_API_BASE_URL}users/${query}`, 'Username')];
+                if (/^[0-9]+$/.test(query)) {
+                    promises.push(fetchWithContext(`${GITHUB_API_BASE_URL}user/${query}`, 'User ID'));
                 }
 
-                return data;
+                const results = await Promise.allSettled(promises);
+                return results
+                    .filter(result => result.status === 'fulfilled')
+                    .map(result => result.value);
             };
 
             form.addEventListener('submit', async (event) => {
@@ -329,8 +337,25 @@
                 submitButton.setAttribute('disabled', 'true');
 
                 try {
-                    const userData = await fetchUserData(query);
-                    renderSuccess(userData);
+                    const allResults = await fetchAllData(query);
+
+                    const uniqueResults = [];
+                    const seenIds = new Set();
+                    for (const result of allResults) {
+                        if (!seenIds.has(result.data.id)) {
+                            uniqueResults.push(result);
+                            seenIds.add(result.data.id);
+                        }
+                    }
+
+                    if (uniqueResults.length === 0) {
+                        renderError('No user or organization found for this query.');
+                    } else {
+                        uniqueResults.forEach(result => {
+                            const resultBlock = renderSingleResult(result);
+                            resultsContainer.append(resultBlock);
+                        });
+                    }
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
                     renderError(errorMessage);
